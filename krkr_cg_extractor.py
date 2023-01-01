@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 
 from PIL import Image
 
@@ -18,14 +19,13 @@ output_path = Path('output')
 
 output_path.mkdir(exist_ok=True)
 
-source_paths = [path for path in evimage_path.iterdir() if path.is_dir()]
 
-for source_path in source_paths:
+def process(source_path):
     base_name = source_path.stem
 
     img_json_path = evimage_path / f'{base_name}.json'
     if not img_json_path.exists():
-        continue
+        return
     with img_json_path.open('r') as fp:
         img_json = json.load(fp)
 
@@ -76,3 +76,16 @@ for source_path in source_paths:
         else:
             print(f'Ignore: {output_target}')
             continue
+
+
+def main():
+    source_paths = [path for path in evimage_path.iterdir() if path.is_dir()]
+    # for source_path in source_paths:
+    #     process(source_path)
+
+    with ThreadPoolExecutor() as t:
+        tasks = [t.submit(process, source_path) for source_path in source_paths]
+        wait(tasks, return_when=ALL_COMPLETED)
+
+
+main()
